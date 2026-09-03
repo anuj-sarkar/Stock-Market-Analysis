@@ -1,0 +1,21 @@
+Symbol,Name,Sector,Category
+AAPL,Apple Inc.,Technology,Large Cap Growth
+MSFT,Microsoft Corporation,Technology,Large Cap Growth
+GOOGL,Alphabet Inc. (Class A),Communication Services,Large Cap Growth
+AMZN,Amazon.com Inc.,Consumer Cyclical,Large Cap Growth
+NVDA,NVIDIA Corporation,Technology,Semiconductors / AI
+META,Meta Platforms Inc.,Communication Services,Large Cap Growth
+TSLA,Tesla Inc.,Consumer Cyclical,Electric Vehicles / Tech
+BRK-B,Berkshire Hathaway Inc.,Financial Services,Value / Conglomerate
+JPM,JPMorgan Chase & Co.,Financial Services,Banking
+V,Visa Inc.,Financial Services,Payments / Fintech
+UNH,UnitedHealth Group Inc.,Healthcare,Healthcare Plans
+JNJ,Johnson & Johnson,Healthcare,Pharmaceuticals
+XOM,Exxon Mobil Corporation,Energy,Oil & Gas
+PG,Procter & Gamble Company,Consumer Defensive,Consumer Staples
+SPY,SPDR S&P 500 ETF Trust,Index ETF,Benchmark US Equity
+QQQ,Invesco QQQ Trust (Nasdaq 100),Index ETF,Tech Benchmark
+DIA,SPDR Dow Jones Industrial Average ETF,Index ETF,Blue Chip Benchmark
+IWM,iShares Russell 2000 ETF,Index ETF,Small Cap Benchmark
+BTC-USD,Bitcoin (USD),Cryptocurrency,Digital Asset
+ETH-USD,Ethereum (USD),Cryptocurrency,Digital Asset
