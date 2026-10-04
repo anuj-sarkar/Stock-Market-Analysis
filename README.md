@@ -19,6 +19,8 @@ A modern, high-performance financial analytics and multi-horizon time-series for
   - *Volatility:* Bollinger Bands (20, 2σ), ATR.
   - *Volume:* On-Balance Volume (OBV).
 - **🤖 Out-of-Sample AI Forecasting:** Multi-day future projections (7, 14, 30, 90 days) with confidence intervals and statistical metrics (RMSE, MAE, MAPE).
+- **💼 Modern Portfolio Theory (MPT) & Optimization:** Markowitz Efficient Frontier, Maximum Sharpe (Tangency) & Minimum Volatility portfolio optimization via SLSQP, Monte Carlo simulation cloud (2,500+ portfolios), and asset allocation donut visualizers.
+- **⚡ Algorithmic Trading Strategy Backtester:** Rule-based SMA, RSI, and MACD crossover simulations with benchmark comparisons and execution trade markers.
 - **📉 Risk & Performance Analytics:** Annualized Return, Volatility, Sharpe Ratio, Sortino Ratio, and Maximum Drawdown.
 - **⚡ High Performance Caching:** Zero-latency interactions powered by `@st.cache_data`.
 

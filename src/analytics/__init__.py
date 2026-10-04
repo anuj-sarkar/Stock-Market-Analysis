@@ -10,6 +10,18 @@ from src.analytics.metrics import (
     calculate_var,
     compute_performance_summary,
 )
+from src.analytics.optimization import (
+    OptimizationResult,
+    PortfolioMetrics,
+    backtest_portfolio_allocations,
+    calculate_efficient_frontier,
+    calculate_equal_weight_portfolio,
+    calculate_portfolio_performance,
+    optimize_max_sharpe,
+    optimize_min_volatility,
+    run_monte_carlo_portfolio_simulation,
+    run_portfolio_optimization,
+)
 from src.analytics.portfolio import (
     calculate_correlation_matrix,
     calculate_normalized_returns,
@@ -28,4 +40,15 @@ __all__ = [
     "fetch_multiple_stocks",
     "calculate_normalized_returns",
     "calculate_correlation_matrix",
+    "PortfolioMetrics",
+    "OptimizationResult",
+    "calculate_portfolio_performance",
+    "optimize_max_sharpe",
+    "optimize_min_volatility",
+    "calculate_equal_weight_portfolio",
+    "calculate_efficient_frontier",
+    "run_monte_carlo_portfolio_simulation",
+    "backtest_portfolio_allocations",
+    "run_portfolio_optimization",
 ]
+

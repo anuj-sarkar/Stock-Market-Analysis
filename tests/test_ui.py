@@ -78,3 +78,39 @@ def test_create_drawdown_chart(enriched_test_df):
     fig = create_drawdown_chart(enriched_test_df)
     assert fig is not None
     assert len(fig.data) == 1
+
+
+def test_portfolio_charts():
+    from src.analytics.optimization import run_portfolio_optimization
+    from ui.components.portfolio_charts import (
+        create_allocation_donut_charts,
+        create_efficient_frontier_chart,
+        create_portfolio_equity_curve_chart,
+    )
+
+    np.random.seed(42)
+    dates = pd.date_range("2024-01-01", periods=100, freq="B")
+    df = pd.DataFrame(
+        {
+            "AAPL": 100 * np.exp(np.cumsum(np.random.normal(0.001, 0.02, 100))),
+            "MSFT": 200 * np.exp(np.cumsum(np.random.normal(0.0008, 0.015, 100))),
+        },
+        index=dates,
+    )
+
+    opt_res = run_portfolio_optimization(df, num_simulations=50)
+    assert opt_res is not None
+
+    ef_fig = create_efficient_frontier_chart(opt_res)
+    assert ef_fig is not None
+    assert len(ef_fig.data) > 0
+
+    donut_fig = create_allocation_donut_charts(opt_res)
+    assert donut_fig is not None
+    assert len(donut_fig.data) == 2
+
+    equity_df = pd.DataFrame({"Max Sharpe": [10000, 10500], "Min Vol": [10000, 10200]})
+    growth_fig = create_portfolio_equity_curve_chart(equity_df)
+    assert growth_fig is not None
+    assert len(growth_fig.data) == 2
+

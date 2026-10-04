@@ -5,6 +5,10 @@ import streamlit as st
 
 from config.settings import CONFIG
 from src.analytics.metrics import compute_performance_summary
+from src.analytics.optimization import (
+    backtest_portfolio_allocations,
+    run_portfolio_optimization,
+)
 from src.analytics.portfolio import (
     calculate_correlation_matrix,
     calculate_normalized_returns,
@@ -49,6 +53,11 @@ from ui.components.metrics_cards import (
     render_header_profile,
     render_market_kpi_cards,
     render_risk_kpi_cards,
+)
+from ui.components.portfolio_charts import (
+    create_allocation_donut_charts,
+    create_efficient_frontier_chart,
+    create_portfolio_equity_curve_chart,
 )
 from ui.components.sidebar import render_sidebar
 
@@ -114,7 +123,7 @@ def main() -> None:
         "📈 Price & Technicals",
         "🤖 AI Forecasting",
         "⚡ Strategy Backtesting",
-        "🌐 Multi-Stock Comparison",
+        "💼 Portfolio Optimization",
         "📊 Risk & Performance",
         "📑 Historical Data",
         "🏢 Profile & Fundamentals",
@@ -363,67 +372,188 @@ def main() -> None:
                     "💡 **Tip:** Try adjusting strategy parameters or choosing a longer timeframe."
                 )
 
-    # Tab 4: Multi-Stock Comparison
+    # Tab 4: Portfolio Allocation & Optimization
     with tab4:
-        st.markdown("### 🌐 Multi-Asset Growth & Correlation Matrix")
-        st.caption("Compare normalized trajectories and diversification benefits across assets.")
+        st.markdown("### 💼 Portfolio Allocator")
+        st.caption("Select your assets and budget to find the optimal division for maximum return or lowest risk.")
 
         tickers_data = get_curated_tickers()
         all_curated_symbols = tickers_data["Symbol"].tolist()
 
-        fallbacks = [s for s in ["SPY", "QQQ", "NVDA", "BTC-USD"] if s != ticker][:3]
+        fallbacks = [s for s in ["SPY", "QQQ", "NVDA", "AAPL", "MSFT"] if s != ticker][:3]
         default_compare = [ticker] + fallbacks
 
-        selected_compare = st.multiselect(
-            "Select Tickers to Compare (2 to 6 assets):",
-            options=all_curated_symbols,
-            default=default_compare[:4],
-        )
+        col_in1, col_in2 = st.columns([3, 1])
+        with col_in1:
+            selected_compare = st.multiselect(
+                "Choose Assets in Your Portfolio (2 to 6):",
+                options=all_curated_symbols,
+                default=default_compare[:4],
+            )
+        with col_in2:
+            portfolio_capital = st.number_input(
+                "Investment Budget ($):",
+                min_value=500,
+                max_value=10000000,
+                value=10000,
+                step=1000,
+            )
+
+        with st.expander("⚙️ Advanced Settings (Risk-Free Rate & Cloud)"):
+            col_adv1, col_adv2 = st.columns(2)
+            with col_adv1:
+                rf_rate_input = st.slider(
+                    "Risk-Free Interest Rate (%)",
+                    min_value=0.0,
+                    max_value=8.0,
+                    value=4.0,
+                    step=0.25,
+                ) / 100.0
+            with col_adv2:
+                show_scatter_dots = st.checkbox("Overlay Monte Carlo Simulation Cloud", value=False)
 
         if len(selected_compare) < 2:
-            st.info("Please select at least 2 tickers to generate comparison analytics.")
+            st.info("👈 Please select at least **2 assets** above to generate portfolio allocations.")
         else:
-            with st.spinner("Fetching and aligning multi-asset prices..."):
+            with st.spinner("Calculating optimal portfolio weights..."):
                 multi_df = fetch_multiple_stocks(
                     selected_compare, period=period, start=start_date, end=end_date
                 )
 
-            if not multi_df.empty:
-                norm_returns = calculate_normalized_returns(multi_df)
-                corr_matrix = calculate_correlation_matrix(multi_df)
+            if multi_df.empty or len(multi_df) < 15:
+                st.warning("Insufficient price history available for the selected assets. Try selecting a longer timeframe.")
+            else:
+                opt_result = run_portfolio_optimization(
+                    multi_df,
+                    risk_free_rate=rf_rate_input,
+                    num_simulations=1500,
+                )
 
-                col_cmp1, col_cmp2 = st.columns([3, 2])
-                with col_cmp1:
-                    st.markdown("#### 🚀 Normalized Relative Growth (%)")
-                    cmp_fig = create_multi_stock_comparison_chart(norm_returns)
-                    st.plotly_chart(cmp_fig, use_container_width=True)
+                if opt_result:
+                    ms = opt_result.max_sharpe_portfolio
+                    mv = opt_result.min_volatility_portfolio
+                    ew = opt_result.equal_weight_portfolio
 
-                with col_cmp2:
-                    st.markdown("#### 🧬 Cross-Asset Correlation Heatmap")
-                    corr_fig = create_correlation_heatmap(corr_matrix)
-                    st.plotly_chart(corr_fig, use_container_width=True)
+                    st.markdown("#### 🎯 Choose Your Strategy")
+                    col_strat1, col_strat2 = st.columns(2)
 
-                st.markdown("#### 📊 Comparative Statistics Summary")
-                stats_rows = []
-                for sym in multi_df.columns:
-                    ret_series = multi_df[sym].pct_change().dropna()
-                    tot_growth = ((multi_df[sym].iloc[-1] / multi_df[sym].iloc[0]) - 1.0) * 100.0
-                    vol_ann = ret_series.std() * (252 ** 0.5) * 100.0
-                    sharpe = (
-                        (ret_series.mean() / ret_series.std()) * (252 ** 0.5)
-                        if ret_series.std() > 0
-                        else 0
-                    )
-                    stats_rows.append(
-                        {
-                            "Asset": sym,
-                            "Total Return (%)": f"{tot_growth:+.2f}%",
-                            "Annualized Volatility (%)": f"{vol_ann:.2f}%",
-                            "Sharpe Ratio": f"{sharpe:.2f}",
-                            "Latest Price": format_currency(multi_df[sym].iloc[-1]),
+                    with col_strat1:
+                        st.markdown(
+                            f"""
+                            <div style="background: rgba(255, 215, 0, 0.07); border: 1.5px solid rgba(255, 215, 0, 0.4);
+                            border-radius: 10px; padding: 18px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                    <span style="color: #FFD700; font-weight: 700; font-size: 1.15rem;">🚀 Growth Portfolio</span>
+                                    <span style="color: #94A3B8; font-size: 0.85rem;">Max Return per Risk</span>
+                                </div>
+                                <div style="display: flex; gap: 24px; margin: 12px 0;">
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Expected Return</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #00E676;">{ms.expected_return * 100:+.1f}% / yr</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Annual Risk (Vol)</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #FFFFFF;">{ms.volatility * 100:.1f}%</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Sharpe Ratio</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #FFD700;">{ms.sharpe_ratio:.2f}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    with col_strat2:
+                        st.markdown(
+                            f"""
+                            <div style="background: rgba(0, 229, 255, 0.07); border: 1.5px solid rgba(0, 229, 255, 0.4);
+                            border-radius: 10px; padding: 18px; margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                    <span style="color: #00E5FF; font-weight: 700; font-size: 1.15rem;">🛡️ Defensive Portfolio</span>
+                                    <span style="color: #94A3B8; font-size: 0.85rem;">Lowest Volatility & Swings</span>
+                                </div>
+                                <div style="display: flex; gap: 24px; margin: 12px 0;">
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Expected Return</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #00E676;">{mv.expected_return * 100:+.1f}% / yr</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Annual Risk (Vol)</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #FFFFFF;">{mv.volatility * 100:.1f}%</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: #94A3B8; font-size: 0.8rem;">Sharpe Ratio</div>
+                                        <div style="font-size: 1.4rem; font-weight: 700; color: #00E5FF;">{mv.sharpe_ratio:.2f}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+                    p_tab1, p_tab2, p_tab3 = st.tabs([
+                        "🥧 Asset Allocation",
+                        "📈 Portfolio Growth ($)",
+                        "⚖️ Risk vs Return Curve",
+                    ])
+
+                    with p_tab1:
+                        st.plotly_chart(create_allocation_donut_charts(opt_result), use_container_width=True)
+
+                        alloc_rows = []
+                        for sym in opt_result.tickers:
+                            ms_w = ms.weights.get(sym, 0.0)
+                            mv_w = mv.weights.get(sym, 0.0)
+                            alloc_rows.append(
+                                {
+                                    "Asset": sym,
+                                    "Growth Plan Weight": f"{ms_w * 100:.1f}%",
+                                    f"Growth Plan (${portfolio_capital:,.0f})": format_currency(portfolio_capital * ms_w),
+                                    "Defensive Plan Weight": f"{mv_w * 100:.1f}%",
+                                    f"Defensive Plan (${portfolio_capital:,.0f})": format_currency(portfolio_capital * mv_w),
+                                }
+                            )
+                        st.dataframe(pd.DataFrame(alloc_rows), use_container_width=True, hide_index=True)
+
+                    with p_tab2:
+                        weights_for_backtest = {
+                            "Growth Portfolio (Max Sharpe)": ms.weights,
+                            "Defensive Portfolio (Min Vol)": mv.weights,
+                            "Equal-Weight (1/N)": ew.weights,
                         }
-                    )
-                st.dataframe(pd.DataFrame(stats_rows), use_container_width=True, hide_index=True)
+                        equity_history = backtest_portfolio_allocations(
+                            multi_df, weights_for_backtest, initial_capital=portfolio_capital
+                        )
+                        if not equity_history.empty:
+                            st.plotly_chart(
+                                create_portfolio_equity_curve_chart(equity_history),
+                                use_container_width=True,
+                            )
+
+                    with p_tab3:
+                        ef_fig = create_efficient_frontier_chart(
+                            opt_result,
+                            show_simulation_cloud=show_scatter_dots,
+                        )
+                        st.plotly_chart(ef_fig, use_container_width=True)
+
+                    with st.expander("🔍 Cross-Asset Correlation & Raw Price History"):
+                        col_cmp1, col_cmp2 = st.columns([3, 2])
+                        with col_cmp1:
+                            st.markdown("##### Normalized Price Trajectories (%)")
+                            st.plotly_chart(
+                                create_multi_stock_comparison_chart(calculate_normalized_returns(multi_df)),
+                                use_container_width=True,
+                            )
+                        with col_cmp2:
+                            st.markdown("##### Pearson Correlation Heatmap")
+                            st.plotly_chart(
+                                create_correlation_heatmap(calculate_correlation_matrix(multi_df)),
+                                use_container_width=True,
+                            )
+
 
     # Tab 5: Risk & Performance
     with tab5:

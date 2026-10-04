@@ -22,6 +22,11 @@ from ui.components.metrics_cards import (
     render_market_kpi_cards,
     render_risk_kpi_cards,
 )
+from ui.components.portfolio_charts import (
+    create_allocation_donut_charts,
+    create_efficient_frontier_chart,
+    create_portfolio_equity_curve_chart,
+)
 from ui.components.sidebar import render_sidebar
 
 __all__ = [
@@ -40,4 +45,8 @@ __all__ = [
     "create_signals_price_chart",
     "create_multi_stock_comparison_chart",
     "create_correlation_heatmap",
+    "create_efficient_frontier_chart",
+    "create_allocation_donut_charts",
+    "create_portfolio_equity_curve_chart",
 ]
+
