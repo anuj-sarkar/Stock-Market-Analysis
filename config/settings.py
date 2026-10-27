@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 class AppConfig:
     """Application constants and default configurations."""
 
-    APP_NAME: str = "AlphaPulse • Stock Analytics"
+    APP_NAME: str = "PortfolioCanvas • Stock Analytics & Forecasting"
     APP_VERSION: str = "2.0.0"
     PAGE_ICON: str = "📈"
 

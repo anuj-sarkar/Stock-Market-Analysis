@@ -162,32 +162,38 @@ def backtest_rsi_mean_reversion(
     rsi_period: int = 14,
     initial_capital: float = 10000.0,
 ) -> BacktestResult:
-    """Backtest RSI Mean-Reversion Strategy (Buy < oversold, Exit > overbought)."""
+    """Backtest RSI Mean-Reversion Strategy (Buy < oversold, Exit > overbought).
+
+    Uses a fully vectorized signal generation: np.where marks entry/exit events,
+    then forward-fill propagates the held position between signal events, which
+    is equivalent to the stateful loop but avoids Python-level iteration.
+    """
     data = df.copy()
     data["RSI"] = calculate_rsi(data, period=rsi_period)
 
-    positions = []
-    current_pos = 0
+    # Vectorized stateful position: assign 1 on oversold cross, 0 on overbought
+    # cross, NaN otherwise, then forward-fill to hold position between signals.
+    raw_signal = np.where(
+        data["RSI"] < oversold, 1,
+        np.where(data["RSI"] > overbought, 0, np.nan),
+    )
+    data["Position"] = (
+        pd.Series(raw_signal, index=data.index)
+        .ffill()
+        .fillna(0)
+        .astype(int)
+    )
 
-    for rsi_val in data["RSI"]:
-        if rsi_val < oversold:
-            current_pos = 1
-        elif rsi_val > overbought:
-            current_pos = 0
-        positions.append(current_pos)
-
-    data["Position"] = positions
-    data["Buy_Signal"] = (data["Position"] == 1) & (pd.Series(data["Position"]).shift(1) == 0)
-    data["Sell_Signal"] = (data["Position"] == 0) & (pd.Series(data["Position"]).shift(1) == 1)
+    data["Buy_Signal"] = (data["Position"] == 1) & (data["Position"].shift(1) == 0)
+    data["Sell_Signal"] = (data["Position"] == 0) & (data["Position"].shift(1) == 1)
 
     daily_returns = data["Close"].pct_change().fillna(0)
-    pos_series = pd.Series(data["Position"], index=data.index)
-    strategy_returns = pos_series.shift(1).fillna(0) * daily_returns
+    strategy_returns = data["Position"].shift(1).fillna(0) * daily_returns
 
     metrics = _compute_trade_metrics(
         daily_returns=daily_returns,
         strategy_returns=strategy_returns,
-        position=pd.Series(data["Position"], index=data.index),
+        position=data["Position"],
         initial_capital=initial_capital,
     )
 

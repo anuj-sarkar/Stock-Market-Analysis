@@ -73,8 +73,13 @@ def render_market_kpi_cards(info: dict[str, Any], df_summary: dict[str, Any]) ->
 
 
 def render_risk_kpi_cards(summary: dict[str, Any]) -> None:
-    """Render 4-column risk & performance summary cards."""
-    col1, col2, col3, col4 = st.columns(4)
+    """Render risk & performance KPI cards across two rows.
+
+    Row 1: Five risk-adjusted return metrics (CAGR, Sharpe, Sortino, Calmar, Max Drawdown).
+    Row 2: Two VaR estimates (Historical and Parametric/Gaussian) for comparison.
+    """
+    # --- Row 1: Risk-adjusted return metrics ---
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         cagr = summary.get("Annualized Return (CAGR %)", 0.0)
@@ -89,19 +94,51 @@ def render_risk_kpi_cards(summary: dict[str, Any]) -> None:
         st.metric(
             label="Sharpe Ratio (Rf=4%)",
             value=f"{sharpe:.2f}",
+            help="Excess return per unit of total volatility. >1 is good, >2 is excellent.",
         )
 
     with col3:
+        sortino = summary.get("Sortino Ratio", 0.0)
+        st.metric(
+            label="Sortino Ratio (Rf=4%)",
+            value=f"{sortino:.2f}",
+            help="Like Sharpe, but penalizes downside volatility only. Preferred for skewed return distributions.",
+        )
+
+    with col4:
+        calmar = summary.get("Calmar Ratio", 0.0)
+        st.metric(
+            label="Calmar Ratio",
+            value=f"{calmar:.2f}",
+            help="CAGR ÷ |Max Drawdown|. Measures return earned per unit of worst historical loss.",
+        )
+
+    with col5:
         max_dd = summary.get("Max Drawdown (%)", 0.0)
         st.metric(
             label="Max Drawdown",
             value=f"{max_dd:.2f}%",
             delta_color="inverse",
+            help="Largest peak-to-trough decline over the selected period.",
         )
 
-    with col4:
-        var_95 = summary.get("1-Day VaR (95%)", 0.0)
+    st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+
+    # --- Row 2: Value at Risk comparison ---
+    col_v1, col_v2, col_v3 = st.columns([1, 1, 2])
+
+    with col_v1:
+        var_hist = summary.get("1-Day VaR (95%)", 0.0)
         st.metric(
-            label="1-Day VaR (95%)",
-            value=f"{var_95:.2f}%",
+            label="1-Day VaR 95% · Historical",
+            value=f"{var_hist:.2f}%",
+            help="Empirical 5th-percentile daily loss. Non-parametric; no distributional assumption.",
+        )
+
+    with col_v2:
+        var_param = summary.get("1-Day VaR (95%, Parametric)", 0.0)
+        st.metric(
+            label="1-Day VaR 95% · Parametric",
+            value=f"{var_param:.2f}%",
+            help="Gaussian VaR: μ + z₀.₀₅·σ. Industry-standard closed-form estimate under normality.",
         )

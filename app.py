@@ -1,4 +1,4 @@
-"""AlphaPulse - Modern Financial Analytics, AI Forecasting & Algorithmic Trading Dashboard."""
+"""PortfolioCanvas - Modern Financial Analytics, AI Forecasting & Algorithmic Trading Dashboard."""
 
 import pandas as pd
 import streamlit as st

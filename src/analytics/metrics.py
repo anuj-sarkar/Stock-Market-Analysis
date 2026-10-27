@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 
 def calculate_cumulative_returns(df: pd.DataFrame, column: str = "Close") -> pd.Series:
@@ -163,13 +164,22 @@ def calculate_var(
     df: pd.DataFrame,
     confidence_level: float = 0.95,
     column: str = "Close",
+    method: str = "historical",
 ) -> float:
-    """Calculate historical Value at Risk (1-day VaR) percentage.
+    """Calculate 1-day Value at Risk (VaR) as a positive loss percentage.
+
+    Two methods are supported:
+    - ``'historical'`` (default): Empirical percentile of the observed return
+      distribution. Non-parametric; makes no distributional assumption.
+    - ``'parametric'``: Gaussian VaR using ``mu + z * sigma`` where ``z`` is
+      the normal quantile at ``1 - confidence_level``. Industry-standard for
+      single-asset VaR under normality; faster and analytically tractable.
 
     Args:
         df: Price dataframe
         confidence_level: Confidence level (e.g. 0.95 for 95%)
         column: Price column name
+        method: ``'historical'`` or ``'parametric'``
 
     Returns:
         float: Daily VaR percentage (positive number representing potential loss)
@@ -178,9 +188,49 @@ def calculate_var(
     if daily_returns.empty:
         return 0.0
 
-    cutoff = (1.0 - confidence_level) * 100.0
-    var = np.percentile(daily_returns, cutoff)
-    return float(abs(var) * 100.0)
+    if method == "parametric":
+        # Parametric (Gaussian) VaR: VaR = -(mu + z_alpha * sigma)
+        # where z_alpha = norm.ppf(1 - confidence_level) is negative for alpha < 0.5
+        mu = float(daily_returns.mean())
+        sigma = float(daily_returns.std())
+        z = norm.ppf(1.0 - confidence_level)  # e.g. -1.645 for 95%
+        var = -(mu + z * sigma)
+    else:
+        # Historical (empirical) VaR: direct percentile of the return series
+        cutoff = (1.0 - confidence_level) * 100.0
+        var = -np.percentile(daily_returns, cutoff)
+
+    return float(max(var, 0.0) * 100.0)
+
+
+def calculate_calmar_ratio(
+    df: pd.DataFrame,
+    column: str = "Close",
+    periods_per_year: int = 252,
+) -> float:
+    """Calculate the Calmar Ratio (CAGR / |Max Drawdown|).
+
+    The Calmar Ratio measures the risk-adjusted return relative to the worst
+    historical peak-to-trough decline. Higher values indicate better return
+    per unit of drawdown risk. Commonly used alongside Sharpe and Sortino to
+    evaluate strategy robustness across different risk dimensions.
+
+    Args:
+        df: Price dataframe
+        column: Price column name
+        periods_per_year: Trading periods per year (252 for daily)
+
+    Returns:
+        float: Calmar ratio (annualized return / |max drawdown|)
+    """
+    cagr_pct = calculate_annualized_return(df, column=column, periods_per_year=periods_per_year)
+    max_dd_pct, _ = calculate_max_drawdown(df, column=column)
+
+    if max_dd_pct == 0.0:
+        return 0.0
+
+    # Both expressed as percentages; ratio is dimensionless
+    return float(cagr_pct / abs(max_dd_pct))
 
 
 def compute_performance_summary(
@@ -207,7 +257,9 @@ def compute_performance_summary(
     sharpe = calculate_sharpe_ratio(df, risk_free_rate=risk_free_rate, column=column)
     sortino = calculate_sortino_ratio(df, risk_free_rate=risk_free_rate, column=column)
     max_dd, _ = calculate_max_drawdown(df, column=column)
-    var_95 = calculate_var(df, confidence_level=0.95, column=column)
+    calmar = calculate_calmar_ratio(df, column=column)
+    var_hist = calculate_var(df, confidence_level=0.95, column=column, method="historical")
+    var_param = calculate_var(df, confidence_level=0.95, column=column, method="parametric")
     daily_returns = df[column].pct_change().dropna()
     positive_days = (daily_returns > 0).sum()
     win_rate = (
@@ -220,8 +272,10 @@ def compute_performance_summary(
         "Annualized Volatility (%)": volatility,
         "Sharpe Ratio": sharpe,
         "Sortino Ratio": sortino,
+        "Calmar Ratio": calmar,
         "Max Drawdown (%)": max_dd,
-        "1-Day VaR (95%)": var_95,
+        "1-Day VaR (95%)": var_hist,
+        "1-Day VaR (95%, Parametric)": var_param,
         "Win Rate (Daily %)": win_rate,
         "Current Price": float(df[column].iloc[-1]),
         "Period High": float(df[column].max()),

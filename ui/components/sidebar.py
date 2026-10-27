@@ -95,7 +95,7 @@ def render_sidebar() -> dict[str, Any]:
         st.markdown(
             """
             <div style="font-size: 0.75rem; color: #64748B; text-align: center; margin-top: 20px;">
-                AlphaPulse v2.0.0 • Powered by Streamlit & Plotly
+                PortfolioCanvas v2.0.0 • Powered by Streamlit & Plotly
             </div>
             """,
             unsafe_allow_html=True,
